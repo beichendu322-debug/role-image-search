@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+</head>
+<body>
+<title>全网角色搜图</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one search bar on top, tag chips in booru colours, then site groups as a link grid */
+:root{
+  --bg:#f3f4f7; --surface:#ffffff; --ink:#16171c; --muted:#5b6070; --line:#dde0e7;
+  --accent:#0075f8; --accent-ink:#ffffff;
+  --t-char:#00a52a; --t-copy:#a800aa; --t-gen:#0068dc; --t-warn:#b45309;
+  --f-body:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#111218; --surface:#1a1c24; --ink:#e8e9ee; --muted:#9a9fad; --line:#2b2e39;
+  --accent:#3d9bff; --accent-ink:#0b0c10;
+  --t-char:#3fcf63; --t-copy:#d08cff; --t-gen:#4aa8ff; --t-warn:#f0a050; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111218; --surface:#1a1c24; --ink:#e8e9ee; --muted:#9a9fad; --line:#2b2e39;
+  --accent:#3d9bff; --accent-ink:#0b0c10;
+  --t-char:#3fcf63; --t-copy:#d08cff; --t-gen:#4aa8ff; --t-warn:#f0a050; color-scheme:dark}
+
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55}
+.wrap{max-width:1080px;margin:0 auto;padding-block:28px 56px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;flex-direction:column;gap:22px}
+h1{margin:0;font-weight:900;font-size:clamp(26px,4vw,36px);letter-spacing:.02em;text-wrap:balance}
+h1 small{display:block;font-size:13px;font-weight:500;color:var(--muted);letter-spacing:0;margin-top:4px}
+
+form{display:flex;gap:8px;flex-wrap:wrap}
+#q{flex:1 1 280px;min-width:0;font:inherit;font-size:17px;padding:13px 16px;border:1.5px solid var(--line);
+  border-radius:10px;background:var(--surface);color:var(--ink)}
+#q:focus{outline:none;border-color:var(--accent)}
+button,.btn{font:inherit;font-weight:700;border-radius:10px;border:1.5px solid var(--line);background:var(--surface);
+  color:var(--ink);padding:12px 16px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+button:focus-visible,a:focus-visible,#q:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#go{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);min-width:96px;justify-content:center}
+#go:disabled{opacity:.6;cursor:wait}
+#imgBtn input{display:none}
+.thumb{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+.thumb img{width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--line)}
+.thumb button{padding:4px 8px;font-size:12px;font-weight:500}
+
+.hist{display:flex;flex-wrap:wrap;gap:6px;font-size:13px}
+.hist button{padding:4px 10px;font-weight:500;font-size:13px;color:var(--muted);border-radius:999px}
+
+.status{font-size:14px;color:var(--muted);min-height:1.5em}
+.status.err{color:var(--t-warn)}
+
+.tags{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline;padding:14px 16px;border:1px solid var(--line);
+  border-radius:12px;background:var(--surface)}
+.tags .lbl{font-size:12px;color:var(--muted);letter-spacing:.06em}
+.tag{font-family:var(--f-mono);font-size:13.5px;font-weight:600}
+.tag.char{color:var(--t-char)} .tag.copy{color:var(--t-copy)} .tag.gen{color:var(--t-gen)}
+.names{flex-basis:100%;font-size:14px;color:var(--muted)}
+.names b{color:var(--ink);font-weight:700}
+.badge{font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--t-warn);border:1px solid currentColor;border-radius:4px;padding:0 5px}
+
+section h2{font-size:13px;letter-spacing:.12em;color:var(--muted);margin:0 0 10px;font-weight:700}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px}
+.site{display:flex;flex-direction:column;gap:2px;padding:11px 14px;border:1px solid var(--line);border-radius:10px;
+  background:var(--surface);color:var(--ink);text-decoration:none;min-width:0;transition:border-color .15s,transform .15s}
+.site:hover{border-color:var(--accent);transform:translateY(-1px)}
+.site .n{font-weight:700;display:flex;justify-content:space-between;gap:8px}
+.site .n span{color:var(--accent);font-weight:500}
+.site code{font-family:var(--f-mono);font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.foot{font-size:12.5px;color:var(--muted)}
+@media (prefers-reduced-motion:reduce){.site{transition:none}.site:hover{transform:none}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>全网角色搜图<small>输入角色和动作，或丢一张参考图。AI 换算成各站标签，点卡片直达结果。</small></h1>
+  </header>
+
+  <form id="f" autocomplete="off">
+    <input id="q" placeholder="例：初音未来 撑伞 / 原神 胡桃 比心 / 2B 背影" value="初音未来 撑伞">
+    <label class="btn" id="imgBtn" title="用图片识别角色">参考图<input type="file" id="img" accept="image/jpeg,image/png,image/webp,image/gif"></label>
+    <button id="go" type="submit">搜索</button>
+  </form>
+  <div class="thumb" id="thumb" hidden><img id="thumbImg" alt="参考图"><span>已附参考图</span><button type="button" id="thumbX">移除</button></div>
+  <div class="hist" id="hist"></div>
+
+  <div class="status" id="status" role="status">下面是示例「初音未来 撑伞」的结果。</div>
+  <div class="tags" id="tags"></div>
+  <div id="groups" style="display:flex;flex-direction:column;gap:22px"></div>
+  <p class="foot">图站卡片默认只搜全年龄分级。抖音、小红书、Instagram、X 等需在对应网站登录后才显示完整结果。</p>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const E = encodeURIComponent;
+const sp = s => (s||"").trim().replace(/\s+/g," ");
+const join = (...a) => sp(a.filter(Boolean).join(" "));
+
+const EXAMPLE = {char_zh:"初音未来",char_ja:"初音ミク",char_en:"Hatsune Miku",series_zh:"VOCALOID",series_en:"vocaloid",
+  dan_char:"hatsune_miku",dan_series:"vocaloid",dan_action:["holding_umbrella","umbrella"],
+  act_zh:"撑伞",act_ja:"傘",act_en:"holding umbrella",hashtag:"初音ミク"};
+
+function queries(r){
+  const zh = join(r.char_zh, r.act_zh), ja = join(r.char_ja, r.act_ja), en = join(r.char_en, r.act_en);
+  const acts = (r.dan_action||[]).filter(Boolean).slice(0,3);
+  const booru = [r.dan_char||r.dan_series, ...acts].filter(Boolean);
+  return {zh: zh||en, ja: ja||zh, en: en||zh, tag2: booru.slice(0,2).join(" "), tags: booru.join(" "),
+          hash: (r.hashtag||r.char_zh||r.char_en||"").replace(/[\s#]/g,""),
+          zan: r.char_en||r.dan_char?.replace(/_/g," ")||en};
+}
+
+const GROUPS = [
+ ["二次元图站", [
+  ["Pixiv", q=>q.ja, s=>`https://www.pixiv.net/tags/${E(s)}/artworks?s_mode=s_tag`],
+  ["Pixiv · 中文", q=>q.zh, s=>`https://www.pixiv.net/tags/${E(s)}/artworks?s_mode=s_tag`],
+  ["Danbooru", q=>q.tag2, s=>`https://safebooru.donmai.us/posts?tags=${E(s)}`],
+  ["Gelbooru", q=>q.tags, s=>`https://gelbooru.com/index.php?page=post&s=list&tags=${E(s+" rating:general")}`],
+  ["Safebooru", q=>q.tags, s=>`https://safebooru.org/index.php?page=post&s=list&tags=${E(s)}`],
+  ["Yande.re", q=>q.tags, s=>`https://yande.re/post?tags=${E(s+" rating:s")}`],
+  ["Konachan", q=>q.tags, s=>`https://konachan.net/post?tags=${E(s)}`],
+  ["Zerochan", q=>q.zan, s=>`https://www.zerochan.net/search?q=${E(s)}`],
+  ["Anime-Pictures", q=>q.tag2.replace(/_/g," "), s=>`https://anime-pictures.net/posts?page=0&search_tag=${E(s)}&lang=en`],
+  ["LOFTER", q=>q.zh, s=>`https://www.lofter.com/tag/${E(s)}`],
+  ["花瓣", q=>q.zh, s=>`https://huaban.com/search?q=${E(s)}`],
+  ["ArtStation", q=>q.en, s=>`https://www.artstation.com/search?query=${E(s)}`],
+  ["DeviantArt", q=>q.en, s=>`https://www.deviantart.com/search?q=${E(s)}`],
+  ["Pinterest", q=>q.en, s=>`https://www.pinterest.com/search/pins/?q=${E(s)}`],
+ ]],
+ ["社交平台", [
+  ["X · 日文", q=>q.ja, s=>`https://x.com/search?q=${E(s)}&f=media`],
+  ["X · 英文", q=>q.en, s=>`https://x.com/search?q=${E(s)}&f=media`],
+  ["Instagram", q=>"#"+q.hash, s=>`https://www.instagram.com/explore/tags/${E(s.slice(1))}/`],
+  ["TikTok", q=>q.en, s=>`https://www.tiktok.com/search?q=${E(s)}`],
+  ["抖音", q=>q.zh, s=>`https://www.douyin.com/search/${E(s)}`],
+  ["小红书", q=>q.zh, s=>`https://www.xiaohongshu.com/search_result?keyword=${E(s)}`],
+  ["微博", q=>q.zh, s=>`https://s.weibo.com/weibo?q=${E(s)}`],
+  ["哔哩哔哩", q=>q.zh, s=>`https://search.bilibili.com/all?keyword=${E(s)}`],
+  ["Telegram", q=>q.en, s=>`https://www.google.com/search?q=${E(s+" site:t.me")}`],
+  ["Reddit", q=>q.en, s=>`https://www.reddit.com/search/?q=${E(s)}`],
+  ["Tumblr", q=>q.en, s=>`https://www.tumblr.com/search/${E(s)}`],
+ ]],
+ ["图片搜索引擎", [
+  ["Google 图片", q=>q.en, s=>`https://www.google.com/search?tbm=isch&q=${E(s)}`],
+  ["Google 图片 · 日文", q=>q.ja, s=>`https://www.google.com/search?tbm=isch&q=${E(s)}`],
+  ["Bing 图片", q=>q.zh, s=>`https://www.bing.com/images/search?q=${E(s)}`],
+  ["Yandex 图片", q=>q.en, s=>`https://yandex.com/images/search?text=${E(s)}`],
+  ["百度图片", q=>q.zh, s=>`https://image.baidu.com/search/index?tn=baiduimage&word=${E(s)}`],
+ ]],
+ ["找到一张后 · 以图找原图", [
+  ["SauceNAO", ()=>"上传图片", ()=>`https://saucenao.com/`],
+  ["ascii2d", ()=>"上传图片", ()=>`https://ascii2d.net/`],
+  ["IQDB", ()=>"上传图片", ()=>`https://iqdb.org/`],
+  ["Google Lens", ()=>"上传图片", ()=>`https://lens.google.com/`],
+ ]],
+];
+
+function el(tag, props={}, ...kids){const n=document.createElement(tag);Object.assign(n,props);n.append(...kids);return n}
+
+function render(r, fallback){
+  const q = queries(r);
+  const tags = $("#tags"); tags.replaceChildren();
+  const names = el("div",{className:"names"});
+  [["中",r.char_zh],["日",r.char_ja],["英",r.char_en],["动作",join(r.act_zh, r.act_en && "/ "+r.act_en)]].forEach(([k,v])=>{
+    if(v){names.append(k+" ", el("b",{textContent:v}), "　")}
+  });
+  if(fallback) names.append(el("span",{className:"badge",textContent:"未经 AI 换算"}));
+  tags.append(names, el("span",{className:"lbl",textContent:"图站标签"}));
+  if(r.dan_series) tags.append(el("span",{className:"tag copy",textContent:r.dan_series}));
+  if(r.dan_char) tags.append(el("span",{className:"tag char",textContent:r.dan_char}));
+  (r.dan_action||[]).forEach(t=>t&&tags.append(el("span",{className:"tag gen",textContent:t})));
+
+  const box = $("#groups"); box.replaceChildren();
+  for(const [title, sites] of GROUPS){
+    const g = el("div",{className:"grid"});
+    for(const [name, pick, url] of sites){
+      const s = pick(q); if(!s) continue;
+      g.append(el("a",{className:"site",href:url(s),target:"_blank",rel:"noopener noreferrer"},
+        el("div",{className:"n"}, name, el("span",{textContent:"↗"})), el("code",{textContent:s,title:s})));
+    }
+    box.append(el("section",{}, el("h2",{textContent:title}), g));
+  }
+}
+
+// ---- history (per-viewer convenience) ----
+const HK="role-search-hist";
+function loadHist(){try{return JSON.parse(localStorage.getItem(HK)||"[]")}catch{return[]}}
+function saveHist(v){try{const h=[v,...loadHist().filter(x=>x!==v)].slice(0,8);localStorage.setItem(HK,JSON.stringify(h))}catch{}}
+function drawHist(){const h=loadHist();$("#hist").replaceChildren(...h.map(v=>el("button",{type:"button",textContent:v,onclick:()=>{$("#q").value=v;$("#f").requestSubmit()}})))}
+drawHist();
+
+// ---- reference image ----
+let imgFile=null;
+$("#img").onchange=e=>{const f=e.target.files[0];if(!f)return;imgFile=f;$("#thumbImg").src=URL.createObjectURL(f);$("#thumb").hidden=false};
+$("#thumbX").onclick=()=>{imgFile=null;$("#img").value="";$("#thumb").hidden=true};
+document.addEventListener("paste",e=>{const f=[...(e.clipboardData?.files||[])].find(x=>x.type.startsWith("image/"));if(f){imgFile=f;$("#thumbImg").src=URL.createObjectURL(f);$("#thumb").hidden=false}});
+
+// ---- AI ----
+const PROMPT = t => `识别要找的角色和动作，给出各平台最易命中的搜索词。只回JSON：
+{"char_zh":"","char_ja":"","char_en":"","series_zh":"","series_en":"","dan_char":"","dan_series":"","dan_action":[],"act_zh":"","act_ja":"","act_en":"","hashtag":""}
+dan_*用Danbooru标准标签（小写下划线），dan_action最多3个、最常用的放前面；act_ja用pixiv常用日文标签；hashtag为该角色在Instagram最常用的标签。不确定的留空。
+${imgFile?"参考图：附图中的角色和动作。":""}输入：${t||"（见图）"}`;
+
+let samplePromise = window.claude?.use ? window.claude.use("sample") : Promise.resolve(null);
+let ctl;
+const st = (t,err)=>{const s=$("#status");s.textContent=t;s.classList.toggle("err",!!err)};
+
+$("#f").onsubmit = async e=>{
+  e.preventDefault();
+  const t = sp($("#q").value);
+  if(!t && !imgFile){st("先输入角色，或附一张参考图。",true);return}
+  ctl?.abort(); ctl=new AbortController();
+  const go=$("#go"); go.disabled=true; go.textContent="识别中…";
+  st("AI 正在识别角色并换算各站标签…");
+  const sample = await samplePromise;
+  try{
+    if(!sample) throw {code:"unavailable"};
+    const opt={signal:ctl.signal};
+    if(imgFile) opt.images=imgFile;
+    const r = await sample.json(PROMPT(t), opt);
+    if(!r || typeof r!=="object" || (!r.char_zh && !r.char_en && !r.char_ja)) throw {code:"empty"};
+    if(!Array.isArray(r.dan_action)) r.dan_action=[];
+    render(r); if(t) {saveHist(t); drawHist();}
+    st(`已换算「${r.char_zh||r.char_en}${r.act_zh?" · "+r.act_zh:""}」。点任意卡片打开结果。`);
+  }catch(err){
+    if(err?.code==="cancelled") return;
+    const raw = t||"";
+    render({char_zh:raw,char_ja:raw,char_en:raw,dan_char:raw.replace(/\s+/g,"_").toLowerCase()}, true);
+    const msg = {not_granted:"没有允许 AI，已用原文搜索。",rate_limited:"AI 调用太频繁，稍后再试；已用原文搜索。",
+      images_unavailable:"当前环境不能发送图片，请改用文字。",image_rejected:"这张图无法读取，换一张试试。",
+      empty:"没认出这个角色，已用原文搜索。可以补充作品名再试。",unavailable:"AI 不可用，已用原文搜索。"}[err?.code]
+      || "AI 换算失败，已用原文搜索。可以再点一次搜索。";
+    st(msg,true);
+  }finally{go.disabled=false;go.textContent="搜索"}
+};
+
+render(EXAMPLE);
+</script>
+
+</body>
+</html>
